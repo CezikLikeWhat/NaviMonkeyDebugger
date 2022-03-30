@@ -93,29 +93,6 @@ def on_message_filtered(client: mqtt.Client, userdata: Any, message: Any) -> Non
             "txpower": rpi["txpower"]
         })
 
-    # temp_dict = {"client_id": filtered_json["client_id"]}
-
-    # for rpi in filtered_json["rpi"]:
-
-    #     if rpi["mac"] not in filtered_unique_mac:
-    #         filtered_unique_mac.append(rpi["mac"])
-
-    #     filtered_rssi.append(rpi["rssi"])
-
-    #     temp_dict2 = {"rssi": rpi["rssi"],
-    #                   "txpower": rpi["txpower"],
-    #                   "mac": rpi["mac"],
-    #                   "x": rpi["x"],
-    #                   "y": rpi["y"]
-    #                   }
-    #     array_filtered.append({**temp_dict, **temp_dict2})
-
-    # with open("./data/filtered.csv", "a", encoding="UTF8", newline="") as f:
-    #     writer = csv.DictWriter(f, fieldnames=headers_devices)
-    #     writer.writerows(array_filtered)
-
-    # array_filtered.pop()
-
 
 def on_message_position(client: mqtt.Client, userdata: Any, message: Any) -> None:
     position_json = json.loads(message.payload)
@@ -184,7 +161,7 @@ def exit_handler(signum, frame):
                     "txpower": element["txpower"]
                 }
             )
-        print(final_array_filtered)
+            
         with open("./data/filtered.csv", "w", encoding="UTF8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=headers_filtered)
             writer.writeheader()
