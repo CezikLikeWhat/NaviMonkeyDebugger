@@ -9,7 +9,13 @@ import statistics
 import paho.mqtt.client as mqtt
 import paho.mqtt.subscribe as sub
 
-# headers_filtered = ["client_id", "rssi", "txpower", "mac", "x", "y"," ", "Min-RSSI", "Max-RSSI", "Mean-RSSI", "Median-RSSI","TxPower"]
+
+def n_generator():
+    i = 1.5
+    while i <= 7:
+        yield i
+        i += 0.10
+
 
 # Globals
 topic = ""
@@ -19,10 +25,11 @@ headers_devices = ["client_id", "rssi", "txpower", "mac"]
 final_array_devices = []
 
 # filtered
-headers_filtered = ["mac","min_rssi", "max_rssi", "mean_rssi", "median_rssi", "txpower"]
+headers_filtered = ["mac", "min_rssi", "max_rssi", "mean_rssi", "median_rssi", "txpower", " ", "N"]
 final_array_filtered = []
 filtered_unique_mac = []
 filtered_temp_array = []
+N = [float(f"{i:.1f}") for i in n_generator()]
 
 # position
 headers_position = ["client_id", "x", "y", "error", "date"]
@@ -150,6 +157,20 @@ def exit_handler(signum, frame):
             temp_rssi_array = []
             temp_cos_array.append(temp_cos)
 
+        for mac in filtered_unique_mac:
+            headers_filtered.append(mac)
+
+        distance_dict = {}
+        for index, header in enumerate(headers_filtered):
+            if index <= 7:
+                continue
+            for element in temp_cos_array:
+                if element["mac"] == header:
+
+                    distance_dict[header] = (10 ** ((element["txpower"] - statistics.mean(element["rssi"])) / (10 * n))) * 100
+
+
+
         for element in temp_cos_array:
             final_array_filtered.append(
                 {
@@ -158,10 +179,13 @@ def exit_handler(signum, frame):
                     "max_rssi": min(element["rssi"]),
                     "mean_rssi": statistics.mean(element["rssi"]),
                     "median_rssi": statistics.median(element["rssi"]),
-                    "txpower": element["txpower"]
+                    "txpower": element["txpower"],
+                    " ": " ",
+                    "N": N,
+
                 }
             )
-            
+
         with open("./data/filtered.csv", "w", encoding="UTF8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=headers_filtered)
             writer.writeheader()

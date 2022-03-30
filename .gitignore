@@ -1,3 +1,7 @@
 .vscode
 venv
 jsons.txt
+.idea
+data/devices.csv
+data/filtered.csv
+data/position.csv
