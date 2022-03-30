@@ -4,7 +4,7 @@ import signal
 import sys
 from typing import Any
 import csv
-import statistics 
+import statistics
 
 import paho.mqtt.client as mqtt
 import paho.mqtt.subscribe as sub
@@ -19,7 +19,7 @@ headers_devices = ["client_id", "rssi", "txpower", "mac"]
 final_array_devices = []
 
 # filtered
-headers_filtered = ["Min-RSSI", "Max-RSSI", "Mean-RSSI", "Median-RSSI", "TxPower"]
+headers_filtered = ["mac","min_rssi", "max_rssi", "mean_rssi", "median_rssi", "txpower"]
 final_array_filtered = []
 filtered_unique_mac = []
 filtered_temp_array = []
@@ -88,11 +88,10 @@ def on_message_filtered(client: mqtt.Client, userdata: Any, message: Any) -> Non
             filtered_unique_mac.append(rpi["mac"])
 
         filtered_temp_array.append({
-            "mac":rpi["mac"], 
-            "rssi": rpi["rssi"], 
+            "mac": rpi["mac"],
+            "rssi": rpi["rssi"],
             "txpower": rpi["txpower"]
         })
-    
 
     # temp_dict = {"client_id": filtered_json["client_id"]}
 
@@ -160,37 +159,40 @@ def exit_handler(signum, frame):
             writer.writeheader()
             writer.writerows(final_array_devices)
     elif topic == "filtered":
-        
+
         temp_cos_array = []
         temp_rssi_array = []
         for address in filtered_unique_mac:
+            temp_txpower = 1
             for element in filtered_temp_array:
                 if address == element["mac"]:
+                    if temp_txpower == 1:
+                        temp_txpower = element["txpower"]
                     temp_rssi_array.append(element["rssi"])
-            temp_cos = {"mac": address,"rssi": temp_rssi_array,"txpower": element["txpower"]}
+            temp_cos = {"mac": address, "rssi": temp_rssi_array, "txpower": temp_txpower}
+            temp_rssi_array = []
             temp_cos_array.append(temp_cos)
-        
-        
+
         for element in temp_cos_array:
             final_array_filtered.append(
                 {
-                    "mac":element["mac"],
-                    "min_rssi": min(element["rssi"]),
-                    "max_rssi": max(element["rssi"]),
+                    "mac": element["mac"],
+                    "min_rssi": max(element["rssi"]),
+                    "max_rssi": min(element["rssi"]),
                     "mean_rssi": statistics.mean(element["rssi"]),
                     "median_rssi": statistics.median(element["rssi"]),
                     "txpower": element["txpower"]
                 }
             )
         print(final_array_filtered)
-        with open("./data/filtered.csv", "a", encoding="UTF8", newline="") as f:
+        with open("./data/filtered.csv", "w", encoding="UTF8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=headers_filtered)
             writer.writeheader()
             writer.writerows(final_array_filtered)
 
 
     else:
-        
+
         with open("./data/position.csv", "w", encoding="UTF8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=headers_position)
             writer.writeheader()
