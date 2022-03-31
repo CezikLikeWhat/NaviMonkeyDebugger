@@ -2,6 +2,7 @@ import argparse
 import json
 import signal
 import sys
+from tracemalloc import start
 from typing import Any
 import csv
 import statistics
@@ -25,8 +26,10 @@ headers_devices = ["client_id", "rssi", "txpower", "mac"]
 final_array_devices = []
 
 # filtered
-headers_filtered = ["mac", "min_rssi", "max_rssi", "mean_rssi", "median_rssi", "txpower", " ", "N"]
+headers_filtered = ["mac", "min_rssi", "max_rssi", "mean_rssi", "median_rssi", "txpower"]
+headers_filtered_v2 = ["N"]
 final_array_filtered = []
+final_array_filtered_v2 = []
 filtered_unique_mac = []
 filtered_temp_array = []
 N = [float(f"{i:.1f}") for i in n_generator()]
@@ -66,7 +69,6 @@ def input_validation() -> dict:
 
 def on_message_devices(client: mqtt.Client, userdata: Any, message: Any) -> None:
     devices_json = json.loads(message.payload)
-    array_devices = []
 
     temp_dict = {"client_id": devices_json["client_id"]}
 
@@ -76,13 +78,7 @@ def on_message_devices(client: mqtt.Client, userdata: Any, message: Any) -> None
             "txpower": device["txpower"],
             "mac": device["mac"],
         }
-        array_devices.append({**temp_dict, **temp_dict2})
-
-    with open("./data/devices.csv", "a", encoding="UTF8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=headers_devices)
-        writer.writerows(array_devices)
-
-    array_devices.pop()
+        final_array_devices.append({**temp_dict, **temp_dict2})
 
 
 def on_message_filtered(client: mqtt.Client, userdata: Any, message: Any) -> None:
@@ -137,13 +133,12 @@ def set_up_client() -> mqtt.Client:
 def exit_handler(signum, frame):
     global topic, filtered_unique_mac, filtered_dict_of_everything
     if topic == "devices":
-
         with open("./data/devices.csv", "w", encoding="UTF8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=headers_devices)
             writer.writeheader()
             writer.writerows(final_array_devices)
-    elif topic == "filtered":
 
+    elif topic == "filtered":
         temp_cos_array = []
         temp_rssi_array = []
         for address in filtered_unique_mac:
@@ -158,19 +153,9 @@ def exit_handler(signum, frame):
             temp_cos_array.append(temp_cos)
 
         for mac in filtered_unique_mac:
-            headers_filtered.append(mac)
-
-        distance_dict = {}
-        for index, header in enumerate(headers_filtered):
-            if index <= 7:
-                continue
-            for element in temp_cos_array:
-                if element["mac"] == header:
-
-                    distance_dict[header] = (10 ** ((element["txpower"] - statistics.mean(element["rssi"])) / (10 * n))) * 100
-
-
-
+            headers_filtered_v2.append(mac)
+      
+        
         for element in temp_cos_array:
             final_array_filtered.append(
                 {
@@ -179,10 +164,7 @@ def exit_handler(signum, frame):
                     "max_rssi": min(element["rssi"]),
                     "mean_rssi": statistics.mean(element["rssi"]),
                     "median_rssi": statistics.median(element["rssi"]),
-                    "txpower": element["txpower"],
-                    " ": " ",
-                    "N": N,
-
+                    "txpower": element["txpower"],               
                 }
             )
 
@@ -190,10 +172,24 @@ def exit_handler(signum, frame):
             writer = csv.DictWriter(f, fieldnames=headers_filtered)
             writer.writeheader()
             writer.writerows(final_array_filtered)
+            writer.writerow({"mac": " ", "min_rssi": " ", "max_rssi": " ", "mean_rssi": " ", "median_rssi": " ", "txpower": " "})
 
+        with open("./data/filtered.csv", "a", encoding="UTF8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=headers_filtered_v2)
+            writer.writeheader()
+            
+            
+            distance_dict = {}
+            
+            for n in N:
+                for element in temp_cos_array: 
+                    distance_dict.update({
+                        "N":n, 
+                        element["mac"]:(10 ** ((element["txpower"] - statistics.mean(element["rssi"])) / (10 * n))) * 100
+                        })
+                writer.writerow(distance_dict)
 
     else:
-
         with open("./data/position.csv", "w", encoding="UTF8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=headers_position)
             writer.writeheader()
